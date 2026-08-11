@@ -22,6 +22,7 @@ const el = {
   openAnswer: document.getElementById("open-answer"),
   bar: document.getElementById("progress-bar"),
   scoreNum: document.getElementById("score-num"),
+  scoreTotal: document.getElementById("score-total"),
   scoreTitle: document.getElementById("score-title"),
   verdict: document.getElementById("score-verdict"),
   topicStats: document.getElementById("topic-stats"),
@@ -145,16 +146,18 @@ function grade() {
   });
 
   const name = el.name.value.trim();
+  const total = questions.length;
   el.scoreNum.textContent = String(correct);
+  if (el.scoreTotal) el.scoreTotal.textContent = String(total);
   el.scoreTitle.textContent = name ? `${name}, ваш результат` : "Ваш результат";
 
   let verdict;
-  if (correct >= 17) {
+  if (correct >= Math.ceil(total * 0.86)) {
     verdict = "Отлично — материал усвоен, можно вести смену уверенно.";
-  } else if (correct >= 13) {
+  } else if (correct >= Math.ceil(total * 0.69)) {
     verdict = "Хорошо — база есть, подтяните слабые темы по разбору ниже.";
-  } else if (correct >= 9) {
-    verdict = "Средне — перечитайте регламент СПК и инструкцию по общению.";
+  } else if (correct >= Math.ceil(total * 0.51)) {
+    verdict = "Средне — перечитайте регламент СПК, бейджи, пустые крючки и общение.";
   } else {
     verdict = "Нужно повторно изучить регламенты перед самостоятельной сменой.";
   }
