@@ -287,11 +287,83 @@ textarea:focus {
 .scoreline {
   font-family: var(--display);
   font-size: clamp(2.4rem, 8vw, 3.6rem);
-  margin: 0.2rem 0 0.8rem;
+  margin: 0.2rem 0 0.45rem;
   background: linear-gradient(120deg, var(--brand), var(--violet-soft));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.score-percent {
+  margin: 0 0 0.85rem;
+  font-family: var(--display);
+  font-size: 1.05rem;
+  color: var(--violet-soft);
+  font-weight: 700;
+}
+
+.section-title {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  margin: 1.25rem 0 0.65rem;
+  color: var(--text);
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.55rem;
+  margin: 0.35rem 0 0.2rem;
+}
+
+.summary-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  background: #160b24;
+}
+
+.summary-card .label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.summary-card .value {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--violet-soft);
+}
+
+.summary-card.ok .value { color: var(--ok); }
+.summary-card.bad .value { color: var(--bad); }
+.summary-card.partial .value { color: #f0b429; }
+
+.weak-block {
+  margin: 0.35rem 0 0.2rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--line));
+  background: color-mix(in srgb, var(--brand) 12%, #160b24);
+}
+
+.weak-block .section-title { margin-top: 0; }
+
+.weak-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.review-hint {
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .slash { color: var(--muted); margin: 0 0.15rem; }
@@ -299,7 +371,7 @@ textarea:focus {
 .topic-stats {
   display: grid;
   gap: 0.55rem;
-  margin: 0 0 1.4rem;
+  margin: 0 0 0.6rem;
 }
 
 .topic-row {
@@ -319,9 +391,9 @@ textarea:focus {
   display: grid;
   gap: 0.7rem;
   margin-bottom: 1.3rem;
-  max-height: 460px;
-  overflow: auto;
-  padding-right: 0.2rem;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .review-item {
@@ -349,6 +421,51 @@ textarea:focus {
 .review-item.bad .mark { color: var(--bad); }
 .review-item.partial .mark { color: #f0b429; }
 
+.review-item .q-topic {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--violet) 22%, transparent);
+  color: var(--violet-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.kw-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.kw {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+
+.kw.hit {
+  background: color-mix(in srgb, var(--ok) 18%, #160b24);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+  color: var(--ok);
+}
+
+.kw.miss {
+  background: transparent;
+  color: var(--muted);
+}
+
+.opt-line {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .muted { color: var(--muted); margin-top: 0.4rem; }
 .sample { margin-top: 0.45rem; color: color-mix(in srgb, var(--violet-soft) 80%, white); }
 
@@ -364,4 +481,5 @@ textarea:focus {
 @media (max-width: 560px) {
   .nav { grid-template-columns: 1fr; }
   .shell { margin-top: 1.4rem; }
+  .summary-cards { grid-template-columns: 1fr; }
 }

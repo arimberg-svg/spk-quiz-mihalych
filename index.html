@@ -63,8 +63,18 @@
       <p class="eyebrow">Результат</p>
       <h1 id="score-title">Ваш результат</h1>
       <p class="scoreline"><span id="score-num">0</span><span class="slash">/</span><span id="score-total">37</span></p>
+      <p id="score-percent" class="score-percent"></p>
       <p id="score-verdict" class="lead"></p>
+
+      <div id="summary-cards" class="summary-cards"></div>
+      <h3 class="section-title">По темам</h3>
       <div id="topic-stats" class="topic-stats"></div>
+      <div id="weak-block" class="weak-block hidden">
+        <h3 class="section-title">Что подтянуть</h3>
+        <ul id="weak-list" class="weak-list"></ul>
+      </div>
+      <h3 class="section-title">Разбор ответов</h3>
+      <p class="review-hint">Сначала ошибки и частичные ответы, затем верные. У открытых — какие ключевые слова засчитаны.</p>
       <div id="review" class="review"></div>
       <button type="button" class="btn primary" id="btn-restart">Пройти ещё раз</button>
     </section>
