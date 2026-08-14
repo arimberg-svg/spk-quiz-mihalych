@@ -222,43 +222,142 @@ function buildMailPayload(rows, correct, partial, total, pct, byTopic) {
     .map(([t, s]) => `${t}: ${s.ok}/${s.total}${s.partial ? ` (частичн. ${s.partial})` : ""}`)
     .join("\n");
 
+  const allAnswers = rows
+    .map((r) => {
+      if (r.open) {
+        const status = r.s.ok ? "OK" : r.s.partial ? "частично" : "нет";
+        return `#${r.i + 1} [${r.q.topic}] ${status}\n${r.q.q}\n→ ${answers[r.i] || "—"}`;
+      }
+      const status = r.ok ? "OK" : "ошибка";
+      return `#${r.i + 1} [${r.q.topic}] ${status}\n${r.q.q}\n→ ${optionByLetter(r.q, answers[r.i]) || "—"}`;
+    })
+    .join("\n\n");
+
+  const clip = (text, max = 9000) =>
+    text.length <= max ? text : `${text.slice(0, max)}\n…(обрезано)`;
+
   return {
     _subject: `Тест СПК: ${profile.name} · ${profile.store} · ${profile.role} · ${correct}/${total}`,
     _template: "table",
+    _captcha: "false",
+    _honey: "",
     name: profile.name,
+    email: "arimberg@gmail.com",
     store: profile.store,
     position: profile.role,
     score: `${correct}/${total}`,
     percent: `${pct}%`,
     partial: String(partial),
-    topics: topicLines,
-    mistakes: wrongLines || "Ошибок нет",
+    topics: clip(topicLines, 3000),
+    mistakes: clip(wrongLines || "Ошибок нет", 6000),
+    answers: clip(allAnswers, 9000),
     message: `Результат теста СПК\nФИО: ${profile.name}\nМагазин: ${profile.store}\nДолжность: ${profile.role}\nБалл: ${correct}/${total} (${pct}%)\nЧастично: ${partial}`,
   };
+}
+
+function payloadToFormData(payload) {
+  const fd = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    fd.append(key, value == null ? "" : String(value));
+  });
+  return fd;
+}
+
+function sendViaHiddenForm(payload) {
+  return new Promise((resolve) => {
+    const frameName = `mail_frame_${Date.now()}`;
+    const iframe = document.createElement("iframe");
+    iframe.name = frameName;
+    iframe.title = "mail";
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "https://formsubmit.co/arimberg@gmail.com";
+    form.target = frameName;
+    form.style.display = "none";
+
+    Object.entries(payload).forEach(([key, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value == null ? "" : String(value);
+      form.appendChild(input);
+    });
+
+    const next = document.createElement("input");
+    next.type = "hidden";
+    next.name = "_next";
+    next.value = "https://formsubmit.co/thanks.html";
+    form.appendChild(next);
+
+    document.body.appendChild(form);
+    form.submit();
+
+    window.setTimeout(() => {
+      form.remove();
+      iframe.remove();
+      resolve(true);
+    }, 2500);
+  });
 }
 
 async function sendResultEmail(payload) {
   if (!el.mailStatus) return;
   el.mailStatus.className = "mail-status";
   el.mailStatus.textContent = "Отправляем результат на arimberg@gmail.com…";
+
+  let ajaxOk = false;
+  let activationNeeded = false;
+
   try {
     const res = await fetch(MAIL_ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
+      headers: { Accept: "application/json" },
+      body: payloadToFormData(payload),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json().catch(() => ({}));
+    const success = data.success === true || data.success === "true";
+    if (success) {
+      ajaxOk = true;
+    } else {
+      const msg = String(data.message || "");
+      if (/confirm|activation|activate|подтверд/i.test(msg)) {
+        activationNeeded = true;
+      }
+      throw new Error(msg || `HTTP ${res.status}`);
+    }
+  } catch (err) {
+    console.warn("FormSubmit AJAX:", err);
+    try {
+      await sendViaHiddenForm(payload);
+      ajaxOk = true;
+    } catch (err2) {
+      console.error(err2);
+    }
+  }
+
+  if (ajaxOk && !activationNeeded) {
     el.mailStatus.className = "mail-status ok";
     el.mailStatus.textContent = "Результат отправлен на arimberg@gmail.com.";
-  } catch (err) {
+    return;
+  }
+
+  if (activationNeeded) {
     el.mailStatus.className = "mail-status bad";
     el.mailStatus.textContent =
-      "Не удалось отправить письмо автоматически. Сохраните скрин результата и перешлите вручную на arimberg@gmail.com.";
-    console.error(err);
+      "FormSubmit ждёт подтверждения: откройте письмо на arimberg@gmail.com и подтвердите адрес — после этого ответы будут приходить.";
+    return;
   }
+
+  el.mailStatus.className = "mail-status bad";
+  el.mailStatus.innerHTML =
+    'Не удалось подтвердить отправку. Проверьте почту arimberg@gmail.com (в т.ч. «Спам») и подтвердите FormSubmit при первом письме. <a href="mailto:arimberg@gmail.com?subject=' +
+    encodeURIComponent(payload._subject) +
+    "&body=" +
+    encodeURIComponent(payload.message + "\n\n" + (payload.mistakes || "").slice(0, 1200)) +
+    '">Открыть письмо вручную</a>';
 }
 
 function grade() {
