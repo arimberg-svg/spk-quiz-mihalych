@@ -1,14 +1,20 @@
 const LETTERS = ["a", "b", "c", "d"];
+const MAIL_ENDPOINT = "https://formsubmit.co/ajax/arimberg@gmail.com";
 
 let questions = [];
 let answers = [];
 let current = 0;
+let profile = { name: "", store: "", role: "" };
 
 const el = {
   start: document.getElementById("screen-start"),
   quiz: document.getElementById("screen-quiz"),
   result: document.getElementById("screen-result"),
+  form: document.getElementById("start-form"),
+  formError: document.getElementById("form-error"),
   name: document.getElementById("user-name"),
+  store: document.getElementById("user-store"),
+  role: document.getElementById("user-role"),
   startBtn: document.getElementById("btn-start"),
   prev: document.getElementById("btn-prev"),
   next: document.getElementById("btn-next"),
@@ -26,6 +32,7 @@ const el = {
   scorePercent: document.getElementById("score-percent"),
   scoreTitle: document.getElementById("score-title"),
   verdict: document.getElementById("score-verdict"),
+  mailStatus: document.getElementById("mail-status"),
   summaryCards: document.getElementById("summary-cards"),
   topicStats: document.getElementById("topic-stats"),
   weakBlock: document.getElementById("weak-block"),
@@ -34,26 +41,33 @@ const el = {
 };
 
 const TOPIC_TIPS = {
-  "Цикл дня": "Перечитайте формулировку цикла: остатки → люди → клиент → цифры.",
-  Утро: "Пятиминутка: внешний вид, итоги вчера → цели сегодня, задания, информация из офиса.",
-  Обход: "Маршрут обхода: улица → касса → зал → склад; фиксируйте замечания по зонам.",
-  Контроль: "Минимум: пересчёт кассы ≥ 2 раза и контроль качества приёмки ≥ 2 раза в день.",
-  Заказы: "Срок жизни незакрытого заказа — 14 дней; статусы актуализирует СПК.",
-  Первичка: "УПД в день отгрузки и подписание в том же месяце; фото подотчёта бухгалтеру-кассиру за 3 дня.",
-  Режим: "Сезон отпуска 15.04–15.08; перерыв 1 час не входит в рабочее время; курение только в отведённых местах.",
-  Общение: "Стоп-эмоция → факты → решение через СПК; без мата и споров при клиентах.",
-  Команда: "Коррекция наедине: факт → влияние → что изменить → срок.",
-  Инкассация: "Заявку в «Сберинкассации» создаёт магазин сам; готовит сейф-пакет и эл. накладную.",
+  "Цикл дня": "Цикл СПК: остатки → люди → клиент → цифры.",
+  Утро: "Пятиминутка: внешний вид, итоги вчера → цели сегодня, задания.",
+  Обход: "Маршрут: улица → касса → зал → склад.",
+  Контроль: "Пересчёт кассы ≥ 2 раза; качество приёмки ≥ 2 раза.",
+  Заказы: "Срок жизни заказа — 14 дней.",
+  Первичка: "УПД в день отгрузки; фото подотчёта бухгалтеру-кассиру за 3 дня.",
+  Режим: "Сезон 15.04–15.08; перерыв 1 час не входит в рабочее время.",
+  Общение: "Стоп-эмоция → факты → решение через СПК.",
+  Команда: "Коррекция наедине: факт → влияние → изменение → срок.",
+  Инкассация: "Заявку создаёт магазин; лимит наличных для запроса — 50 000 ₽.",
   Подчинение: "Супервайзер → руководитель розницы → генеральный директор.",
-  Товар: "В 1С: отрицательные остатки, зависшие документы, пустые крючки, списания/оприходования, мин-максы.",
-  Бейджи: "ФИО + должность + QR; печать из 1С:Торговля; стажёры — «Стажёр Магазин».",
+  Товар: "Отрицательные остатки, зависшие документы, крючки, мин-максы.",
+  Бейджи: "ФИО + должность + QR; стажёры — «Стажёр Магазин».",
   "Внешний вид": "Форма по сезону + читаемый бейдж.",
-  "Пустые крючки": "Синхронизация зала и учёта; пн/чт; извиняшки; ТСД «Проверка крючков»; закрытие пересчёта с «ГОТОВО».",
-  "Мин-макс": "Еженедельно держать товар на полке и корректировать мин-макс / НО через закуп.",
-  "Неликвиды 180+": "Контролируйте остатки, выкладку, вид, комплектность, цены конкурентов и знание продавцов.",
-  Вечер: "Переоценка, склад, инкассация/отчёт, первичка, итог факт vs план.",
-  "Форс-мажор": "Клиент → очередь → замена; фиксируйте причину и эскалируйте.",
+  "Пустые крючки": "Синхронизация зала и учёта; пн/чт; извиняшки; ТСД.",
+  "Мин-макс": "Товар на полке; корректировка НО через закуп.",
+  "Неликвиды 180+": "Остатки, выкладка, вид, комплектность, цены, знание продавцов.",
+  Вечер: "Переоценка, склад, инкассация/отчёт, первичка, итог дня.",
+  "Форс-мажор": "Клиент → очередь → замена.",
   "Постановка задач": "Что / срок / ответственный / критерий «готово».",
+  "СПК / остатки": "Минус-остатки ≥ 2 раза/неделю; сначала проверить приёмку.",
+  "СПК / команда": "СПК — непосредственный руководитель кассира.",
+  "СПК / инкассация": "Запрос на инкассацию при лимите 50 000 ₽.",
+  "СПК / контроль смены": "Контроль кассы, склада и зала с обратной связью.",
+  Кассир: "Средний чек, прикассовая зона, закрытие смены, сертификаты.",
+  Кладовщик: "Чек-лист конца дня: 1С, брак, ТСД, порядок, подготовка к утру.",
+  Продавец: "Выявление потребностей, наличие по системе, выкладка и акции.",
 };
 
 function show(screen) {
@@ -105,9 +119,7 @@ function scoreOpen(q, text) {
 function hasAnswer() {
   const q = questions[current];
   if (!q) return false;
-  if (q.type === "open") {
-    return normalize(answers[current]).length >= 12;
-  }
+  if (q.type === "open") return normalize(answers[current]).length >= 12;
   return Boolean(answers[current]);
 }
 
@@ -126,7 +138,7 @@ function renderQuestion() {
 
   const isOpen = q.type === "open";
   el.type.textContent = isOpen ? "Открытый" : "Варианты";
-  el.type.className = `badge-type ${isOpen ? "open" : "mc"}`;
+  el.type.className = `q-type ${isOpen ? "open" : "mc"}`;
 
   el.options.classList.toggle("hidden", isOpen);
   el.openWrap.classList.toggle("hidden", !isOpen);
@@ -181,7 +193,62 @@ function renderKeywordChips(s) {
     .map((k) => `<span class="kw miss">− ${escapeHtml(k)}</span>`)
     .join("");
   return `<div class="kw-row">${hits}${miss}</div>
-    <div class="muted">Ключевые слова: ${s.hits}/${s.need} минимум для зачёта (всего маркеров в эталоне: ${(s.matched || []).length + (s.missed || []).length})</div>`;
+    <div class="muted">Ключевые слова: ${s.hits}/${s.need} минимум для зачёта</div>`;
+}
+
+function buildMailPayload(rows, correct, partial, total, pct, byTopic) {
+  const wrongLines = rows
+    .filter((r) => (r.open ? !r.s.ok : !r.ok))
+    .map((r) => {
+      if (r.open) {
+        const status = r.s.partial ? "частично" : "не зачтено";
+        return `#${r.i + 1} [${r.q.topic}] ${status}\nQ: ${r.q.q}\nA: ${answers[r.i] || "—"}\n`;
+      }
+      return `#${r.i + 1} [${r.q.topic}] ошибка\nQ: ${r.q.q}\nВыбрано: ${optionByLetter(r.q, answers[r.i]) || "—"}\nВерно: ${optionByLetter(r.q, r.q.answer)}\n`;
+    })
+    .join("\n");
+
+  const topicLines = Object.entries(byTopic)
+    .map(([t, s]) => `${t}: ${s.ok}/${s.total}${s.partial ? ` (частичн. ${s.partial})` : ""}`)
+    .join("\n");
+
+  return {
+    _subject: `Тест СПК: ${profile.name} · ${profile.store} · ${profile.role} · ${correct}/${total}`,
+    _template: "table",
+    name: profile.name,
+    store: profile.store,
+    position: profile.role,
+    score: `${correct}/${total}`,
+    percent: `${pct}%`,
+    partial: String(partial),
+    topics: topicLines,
+    mistakes: wrongLines || "Ошибок нет",
+    message: `Результат теста СПК\nФИО: ${profile.name}\nМагазин: ${profile.store}\nДолжность: ${profile.role}\nБалл: ${correct}/${total} (${pct}%)\nЧастично: ${partial}`,
+  };
+}
+
+async function sendResultEmail(payload) {
+  if (!el.mailStatus) return;
+  el.mailStatus.className = "mail-status";
+  el.mailStatus.textContent = "Отправляем результат на arimberg@gmail.com…";
+  try {
+    const res = await fetch(MAIL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    el.mailStatus.className = "mail-status ok";
+    el.mailStatus.textContent = "Результат отправлен на arimberg@gmail.com.";
+  } catch (err) {
+    el.mailStatus.className = "mail-status bad";
+    el.mailStatus.textContent =
+      "Не удалось отправить письмо автоматически. Сохраните скрин результата и перешлите вручную на arimberg@gmail.com.";
+    console.error(err);
+  }
 }
 
 function grade() {
@@ -226,13 +293,16 @@ function grade() {
     return { q, i, ok, open: false };
   });
 
-  const name = el.name.value.trim();
   const total = questions.length;
   const pct = total ? Math.round((correct / total) * 100) : 0;
   el.scoreNum.textContent = String(correct);
   if (el.scoreTotal) el.scoreTotal.textContent = String(total);
-  if (el.scorePercent) el.scorePercent.textContent = `${pct}% верных · ошибок: ${total - correct - partial}${partial ? ` · частично: ${partial}` : ""}`;
-  el.scoreTitle.textContent = name ? `${name}, ваш результат` : "Ваш результат";
+  if (el.scorePercent) {
+    el.scorePercent.textContent = `${pct}% верных · ошибок: ${total - correct - partial}${
+      partial ? ` · частично: ${partial}` : ""
+    }`;
+  }
+  el.scoreTitle.textContent = `${profile.name}, ваш результат`;
 
   let verdict;
   if (correct >= Math.ceil(total * 0.86)) {
@@ -240,7 +310,7 @@ function grade() {
   } else if (correct >= Math.ceil(total * 0.69)) {
     verdict = "Хорошо — база есть, разберите ошибки ниже по темам.";
   } else if (correct >= Math.ceil(total * 0.51)) {
-    verdict = "Средне — повторите слабые блоки (бейджи, крючки, общение, первичка).";
+    verdict = "Средне — повторите слабые блоки (СПК, роли смены, крючки, общение).";
   } else {
     verdict = "Нужно повторно изучить регламенты перед самостоятельной сменой.";
   }
@@ -250,10 +320,10 @@ function grade() {
     el.summaryCards.innerHTML = `
       <div class="summary-card ok"><span class="label">Верно</span><span class="value">${correct}</span></div>
       <div class="summary-card bad"><span class="label">Ошибки</span><span class="value">${total - correct - partial}</span></div>
-      <div class="summary-card partial"><span class="label">Частично (открытые)</span><span class="value">${partial}</span></div>
+      <div class="summary-card partial"><span class="label">Частично</span><span class="value">${partial}</span></div>
       <div class="summary-card"><span class="label">С вариантами</span><span class="value">${mcOk}/${mcTotal}</span></div>
       <div class="summary-card"><span class="label">Открытые</span><span class="value">${openOk}/${openTotal}</span></div>
-      <div class="summary-card"><span class="label">Тем с ошибками</span><span class="value">${Object.values(byTopic).filter((s) => s.ok < s.total).length}</span></div>
+      <div class="summary-card"><span class="label">${escapeHtml(profile.role)} · ${escapeHtml(profile.store)}</span><span class="value">${pct}%</span></div>
     `;
   }
 
@@ -263,14 +333,14 @@ function grade() {
       const pctTopic = Math.round((s.ok / s.total) * 100);
       const extra = s.partial ? ` · частичн. ${s.partial}` : "";
       const wrong = s.wrong.length ? ` · № ${s.wrong.join(", ")}` : "";
-      return `<div class="topic-row"><span>${topic}<br><span class="muted" style="font-size:0.8rem">${pctTopic}%${wrong}</span></span><strong>${s.ok}/${s.total}${extra}</strong></div>`;
+      return `<div class="topic-row"><span>${escapeHtml(topic)}<br><span class="muted" style="font-size:0.8rem">${pctTopic}%${wrong}</span></span><strong>${s.ok}/${s.total}${extra}</strong></div>`;
     })
     .join("");
 
   const weak = Object.entries(byTopic)
     .filter(([, s]) => s.ok < s.total)
     .sort((a, b) => a[1].ok / a[1].total - b[1].ok / b[1].total)
-    .slice(0, 6);
+    .slice(0, 8);
 
   if (el.weakBlock && el.weakList) {
     if (!weak.length) {
@@ -280,8 +350,8 @@ function grade() {
       el.weakBlock.classList.remove("hidden");
       el.weakList.innerHTML = weak
         .map(([topic, s]) => {
-          const tip = TOPIC_TIPS[topic] || "Перечитайте соответствующий раздел базы знаний / регламента.";
-          return `<li><strong>${topic}</strong> (${s.ok}/${s.total}): ${escapeHtml(tip)}</li>`;
+          const tip = TOPIC_TIPS[topic] || "Перечитайте раздел базы знаний / регламента.";
+          return `<li><strong>${escapeHtml(topic)}</strong> (${s.ok}/${s.total}): ${escapeHtml(tip)}</li>`;
         })
         .join("");
     }
@@ -293,38 +363,33 @@ function grade() {
         const cls = row.s.ok ? "ok" : row.s.partial ? "partial" : "bad";
         const mark = row.s.ok ? "Зачтено" : row.s.partial ? "Частично" : "Недостаточно";
         const yours = answers[row.i] ? answers[row.i] : "—";
-        const gapNote = row.s.ok
-          ? "Ответ покрывает обязательные маркеры регламента."
-          : "Добавьте недостающие элементы из эталона — без них ответ неполный.";
         return `
           <div class="review-item ${cls}">
             <div class="mark">${mark} · вопрос ${row.i + 1}<span class="q-topic">${escapeHtml(row.q.topic)}</span></div>
             <div>${escapeHtml(row.q.q)}</div>
             <div class="opt-line"><strong>Ваш ответ:</strong> ${escapeHtml(yours)}</div>
             ${renderKeywordChips(row.s)}
-            <div class="sample"><strong>Эталон:</strong> ${escapeHtml(row.q.sample)}<br><span class="muted">${gapNote}</span></div>
+            <div class="sample"><strong>Эталон:</strong> ${escapeHtml(row.q.sample)}</div>
           </div>`;
       }
 
       const yoursLetter = answers[row.i];
       const yoursText = yoursLetter ? optionByLetter(row.q, yoursLetter) : "—";
       const rightText = optionByLetter(row.q, row.q.answer);
-      const analysis = row.ok
-        ? `Верно: выбран вариант ${row.q.answer.toUpperCase()}.`
-        : `Ошибка: выбран ${yoursLetter ? yoursLetter.toUpperCase() : "—"}, верный — ${row.q.answer.toUpperCase()}.`;
       return `
         <div class="review-item ${row.ok ? "ok" : "bad"}">
           <div class="mark">${row.ok ? "Верно" : "Ошибка"} · вопрос ${row.i + 1}<span class="q-topic">${escapeHtml(row.q.topic)}</span></div>
           <div>${escapeHtml(row.q.q)}</div>
           <div class="opt-line"><strong>Ваш ответ:</strong> ${escapeHtml(yoursText)}</div>
           <div class="opt-line"><strong>Верный ответ:</strong> ${escapeHtml(rightText)}</div>
-          <div class="sample"><strong>Пояснение:</strong> ${escapeHtml(row.q.explain || "")}<br><span class="muted">${analysis}</span></div>
+          <div class="sample"><strong>Пояснение:</strong> ${escapeHtml(row.q.explain || "")}</div>
         </div>`;
     })
     .join("");
 
   show("result");
   window.scrollTo({ top: 0, behavior: "smooth" });
+  sendResultEmail(buildMailPayload(rows, correct, partial, total, pct, byTopic));
 }
 
 function escapeHtml(str) {
@@ -335,7 +400,32 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-el.startBtn.addEventListener("click", () => {
+function readProfile() {
+  return {
+    name: el.name.value.trim(),
+    store: el.store.value.trim(),
+    role: el.role.value.trim(),
+  };
+}
+
+function profileValid(p) {
+  return Boolean(p.name && p.store && p.role);
+}
+
+el.form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const p = readProfile();
+  if (!profileValid(p)) {
+    el.formError.classList.remove("hidden");
+    return;
+  }
+  el.formError.classList.add("hidden");
+  if (!questions.length) {
+    el.formError.textContent = "Вопросы ещё загружаются — подождите секунду.";
+    el.formError.classList.remove("hidden");
+    return;
+  }
+  profile = p;
   answers = Array(questions.length).fill(null);
   current = 0;
   show("quiz");
@@ -371,5 +461,8 @@ fetch("questions.json")
     questions = data;
   })
   .catch(() => {
-    el.verdict.textContent = "Не удалось загрузить вопросы.";
+    if (el.formError) {
+      el.formError.textContent = "Не удалось загрузить вопросы.";
+      el.formError.classList.remove("hidden");
+    }
   });
