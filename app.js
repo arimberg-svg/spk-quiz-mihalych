@@ -51,7 +51,7 @@ const TOPIC_TIPS = {
   Общение: "Стоп-эмоция → факты → решение через СПК.",
   Команда: "Коррекция наедине: факт → влияние → изменение → срок.",
   Инкассация: "Заявку создаёт магазин; лимит наличных для запроса — 50 000 ₽.",
-  Подчинение: "Супервайзер → руководитель розницы → генеральный директор.",
+  Подчинение: "Сразу руководитель розницы → генеральный директор.",
   Товар: "Отрицательные остатки, зависшие документы, крючки, мин-максы.",
   Бейджи: "ФИО + должность + QR; стажёры — «Стажёр Магазин».",
   "Внешний вид": "Форма по сезону + читаемый бейдж.",
@@ -69,10 +69,10 @@ const TOPIC_TIPS = {
   Кладовщик: "Чек-лист конца дня: 1С, брак, ТСД, порядок, подготовка к утру.",
   Продавец: "Выявление потребностей, наличие по системе, выкладка и акции.",
   Сертификаты: "Отдельный чек при продаже; оплата покупок — сумма ≥ номинала.",
-  Лояльность: "Регистрация — QR в Telegram, МАХ или на сайте; списание — динамический QR из Telegram, МАХ, ЛК или приложения; бонусы 180 дней; до 99%.",
+  Лояльность: "Регистрация — QR в МАХ или на сайте; списание — динамический QR из Telegram, МАХ, ЛК или приложения; бонусы 180 дней; до 99%.",
   Резерв: "«По мере поступления» / «На складе» — иначе товар уйдёт другим подразделениям.",
   "Отгрузка 1С": "Сборка → оплата → выдача один раз → реализация + счёт-фактура.",
-  "Реализация / УПД": "Доверенность в реализации; СФ после проведения; подписи УПД для ЮЛ.",
+  "Реализация / УПД": "Отгрузка ЮЛ: паспорт, доверенность, печать; доверенность в реализации; СФ; подписи УПД.",
   "Договор 1С": "Галочки «Клиент» + «Создать договор»; автодоговор всем контрагентам.",
   "Монитор ИМ": "Кнопка на рабочем столе; свой магазин; порядок кнопок; выдача 1 раз.",
   "Перемещение ТМЦ": "Через РЦ; маркировка каждого места (заказ, ТТ, кол-во мест).",
@@ -306,14 +306,76 @@ function sendViaHiddenForm(payload) {
   });
 }
 
+function sendViaBeacon(payload) {
+  try {
+    const fd = payloadToFormData(payload);
+    if (navigator.sendBeacon) {
+      return navigator.sendBeacon(MAIL_ENDPOINT, fd);
+    }
+  } catch (err) {
+    console.warn("Beacon mail:", err);
+  }
+  return false;
+}
+
+function buildMailText(payload) {
+  return [
+    payload._subject,
+    "",
+    payload.message,
+    "",
+    "Темы:",
+    payload.topics,
+    "",
+    "Ошибки:",
+    payload.mistakes,
+    "",
+    "Все ответы:",
+    payload.answers,
+  ].join("\n");
+}
+
+function downloadMailBackup(payload) {
+  const text = buildMailText(payload);
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  a.href = url;
+  a.download = `spk-test-${stamp}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function copyMailBackup(payload) {
+  const text = buildMailText(payload);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+  return false;
+}
+
 async function sendResultEmail(payload) {
   if (!el.mailStatus) return;
   el.mailStatus.className = "mail-status";
-  el.mailStatus.textContent = "Отправляем результат на arimberg@gmail.com…";
+  el.mailStatus.textContent = "Отправляем результат на arimberg@gmail.com (два канала)…";
+
+  try {
+    localStorage.setItem(
+      "spkQuizLastResult",
+      JSON.stringify({ at: new Date().toISOString(), payload })
+    );
+  } catch (_) {
+    /* ignore */
+  }
 
   let ajaxOk = false;
+  let formOk = false;
+  let beaconOk = false;
   let activationNeeded = false;
 
+  // Channel 1: FormSubmit AJAX
   try {
     const res = await fetch(MAIL_ENDPOINT, {
       method: "POST",
@@ -329,38 +391,62 @@ async function sendResultEmail(payload) {
       if (/confirm|activation|activate|подтверд/i.test(msg)) {
         activationNeeded = true;
       }
-      throw new Error(msg || `HTTP ${res.status}`);
+      console.warn("FormSubmit AJAX:", msg || res.status);
     }
   } catch (err) {
     console.warn("FormSubmit AJAX:", err);
-    try {
-      await sendViaHiddenForm(payload);
-      ajaxOk = true;
-    } catch (err2) {
-      console.error(err2);
-    }
   }
 
-  if (ajaxOk && !activationNeeded) {
+  // Channel 2: hidden form POST (parallel backup)
+  try {
+    await sendViaHiddenForm(payload);
+    formOk = true;
+  } catch (err) {
+    console.warn("FormSubmit form:", err);
+  }
+
+  // Channel 3: sendBeacon
+  beaconOk = sendViaBeacon(payload);
+
+  const delivered = ajaxOk || formOk || beaconOk;
+
+  if (delivered && !activationNeeded) {
     el.mailStatus.className = "mail-status ok";
-    el.mailStatus.textContent = "Результат отправлен на arimberg@gmail.com.";
-    return;
-  }
-
-  if (activationNeeded) {
+    el.mailStatus.innerHTML =
+      "Результат отправлен на arimberg@gmail.com. " +
+      '<button type="button" class="linkish" id="btn-copy-mail">Скопировать</button> · ' +
+      '<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button>';
+  } else if (activationNeeded) {
     el.mailStatus.className = "mail-status bad";
-    el.mailStatus.textContent =
-      "FormSubmit ждёт подтверждения: откройте письмо на arimberg@gmail.com и подтвердите адрес — после этого ответы будут приходить.";
-    return;
+    el.mailStatus.innerHTML =
+      "FormSubmit ждёт подтверждения на arimberg@gmail.com. " +
+      "После подтверждения письма начнут приходить. " +
+      '<button type="button" class="linkish" id="btn-copy-mail">Скопировать результат</button> · ' +
+      '<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button>';
+  } else {
+    el.mailStatus.className = "mail-status bad";
+    el.mailStatus.innerHTML =
+      "Автоотправка не подтверждена. Сохраните результат и перешлите на arimberg@gmail.com. " +
+      '<button type="button" class="linkish" id="btn-copy-mail">Скопировать</button> · ' +
+      '<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button> · ' +
+      '<a href="mailto:arimberg@gmail.com?subject=' +
+      encodeURIComponent(payload._subject) +
+      "&body=" +
+      encodeURIComponent(payload.message + "\n\n" + (payload.mistakes || "").slice(0, 1200)) +
+      '">Открыть письмо</a>';
   }
 
-  el.mailStatus.className = "mail-status bad";
-  el.mailStatus.innerHTML =
-    'Не удалось подтвердить отправку. Проверьте почту arimberg@gmail.com (в т.ч. «Спам») и подтвердите FormSubmit при первом письме. <a href="mailto:arimberg@gmail.com?subject=' +
-    encodeURIComponent(payload._subject) +
-    "&body=" +
-    encodeURIComponent(payload.message + "\n\n" + (payload.mistakes || "").slice(0, 1200)) +
-    '">Открыть письмо вручную</a>';
+  const copyBtn = document.getElementById("btn-copy-mail");
+  const dlBtn = document.getElementById("btn-dl-mail");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const ok = await copyMailBackup(payload);
+      copyBtn.textContent = ok ? "Скопировано" : "Не удалось";
+    });
+  }
+  if (dlBtn) {
+    dlBtn.addEventListener("click", () => downloadMailBackup(payload));
+  }
 }
 
 function grade() {
