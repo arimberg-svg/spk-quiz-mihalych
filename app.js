@@ -1,16 +1,16 @@
 const LETTERS = ["a", "b", "c", "d"];
 const MAIL_TO = "arimberg@gmail.com";
+/**
+ * Надёжные каналы (FormSubmit не доставляет):
+ * 1) MAIL_APPS_SCRIPT_URL — URL из setup-mail.html / mail-relay.gs
+ * 2) MAIL_WEB3FORMS_KEY — Access Key с https://web3forms.com
+ * Запасной: FormSubmit JSON (часто молчит).
+ */
+const MAIL_APPS_SCRIPT_URL = "";
+const MAIL_WEB3FORMS_KEY = "75e8c010-1d63-4fb9-b6c9-797553dcbeca";
+const MAIL_WEB3FORMS_URL = "https://api.web3forms.com/submit";
 const MAIL_FORMSUBMIT_AJAX = `https://formsubmit.co/ajax/${MAIL_TO}`;
 const MAIL_FORMSUBMIT_FORM = `https://formsubmit.co/${MAIL_TO}`;
-/**
- * Канал 2 (независимый). Заполните ОДИН из вариантов:
- * - MAIL_WEB3FORMS_KEY: Access Key с https://web3forms.com (приходит на почту)
- * - MAIL_APPS_SCRIPT_URL: URL веб-приложения из mail-relay.gs
- * Если оба пустые — канал 2 = HTML-форма FormSubmit (запасной транспорт).
- */
-const MAIL_WEB3FORMS_KEY = "";
-const MAIL_WEB3FORMS_URL = "https://api.web3forms.com/submit";
-const MAIL_APPS_SCRIPT_URL = "";
 
 let questions = [];
 let answers = [];
@@ -315,7 +315,71 @@ async function copyMailBackup(payload) {
   return false;
 }
 
-/** Канал 1: FormSubmit AJAX (JSON) — основной рабочий канал */
+/** Канал 1: Google Apps Script (Gmail) */
+async function sendViaAppsScript(payload) {
+  if (!(MAIL_APPS_SCRIPT_URL && MAIL_APPS_SCRIPT_URL.indexOf("http") === 0)) {
+    return { ok: false, skipped: true, provider: "apps-script", message: "not configured" };
+  }
+  const res = await fetch(MAIL_APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      to: MAIL_TO,
+      subject: payload.subject,
+      message: payload.message,
+      name: payload.name,
+      store: payload.store,
+      position: payload.position,
+      score: payload.score,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  const ok = data.success === true || (res.ok && data.success !== false);
+  return {
+    ok,
+    skipped: false,
+    provider: "apps-script",
+    message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)),
+  };
+}
+
+/** Канал 2: Web3Forms */
+async function sendViaWeb3Forms(payload) {
+  if (!(MAIL_WEB3FORMS_KEY && MAIL_WEB3FORMS_KEY.length > 10)) {
+    return { ok: false, skipped: true, provider: "web3forms", message: "not configured" };
+  }
+  const res = await fetch(MAIL_WEB3FORMS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      access_key: MAIL_WEB3FORMS_KEY,
+      subject: payload.subject,
+      from_name: "Тест СПК У Михалыча",
+      name: payload.name,
+      email: payload.email,
+      replyto: payload.email,
+      store: payload.store,
+      position: payload.position,
+      score: payload.score,
+      percent: payload.percent,
+      message: payload.message,
+      botcheck: false,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  const ok = data.success === true || data.success === "true";
+  return {
+    ok,
+    skipped: false,
+    provider: "web3forms",
+    message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)),
+  };
+}
+
+/** Запасной: FormSubmit AJAX JSON */
 async function sendViaFormSubmitAjax(payload) {
   const body = {
     name: payload.name,
@@ -325,7 +389,10 @@ async function sendViaFormSubmitAjax(payload) {
     _template: "table",
     _captcha: "false",
     _honey: "",
-    _url: typeof location !== "undefined" ? location.href : "https://arimberg-svg.github.io/spk-quiz-mihalych/",
+    _url:
+      typeof location !== "undefined"
+        ? location.href
+        : "https://arimberg-svg.github.io/spk-quiz-mihalych/",
     store: payload.store,
     position: payload.position,
     score: payload.score,
@@ -349,60 +416,17 @@ async function sendViaFormSubmitAjax(payload) {
   const ok = data.success === true || data.success === "true";
   return {
     ok,
-    activation: /confirm|activation|activate|подтверд/i.test(String(data.message || "")),
+    skipped: false,
+    activation: /confirm|activation|activate|подтверд|web server|html files/i.test(
+      String(data.message || "")
+    ),
+    provider: "formsubmit",
     message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)),
   };
 }
 
-/** Канал 2: Web3Forms / Apps Script / FormSubmit HTML-форма */
-async function sendViaChannelTwo(payload) {
-  if (MAIL_APPS_SCRIPT_URL && MAIL_APPS_SCRIPT_URL.indexOf("http") === 0) {
-    const res = await fetch(MAIL_APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        to: MAIL_TO,
-        subject: payload.subject,
-        message: payload.message,
-        name: payload.name,
-        store: payload.store,
-        position: payload.position,
-        score: payload.score,
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    const ok = data.success === true || res.ok;
-    return { ok, provider: "apps-script", message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)) };
-  }
-
-  if (MAIL_WEB3FORMS_KEY && MAIL_WEB3FORMS_KEY.length > 10) {
-    const res = await fetch(MAIL_WEB3FORMS_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        access_key: MAIL_WEB3FORMS_KEY,
-        subject: payload.subject,
-        from_name: "Тест СПК У Михалыча",
-        name: payload.name,
-        email: payload.email,
-        replyto: payload.email,
-        store: payload.store,
-        position: payload.position,
-        score: payload.score,
-        percent: payload.percent,
-        message: payload.message,
-        botcheck: false,
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    const ok = data.success === true || data.success === "true";
-    return { ok, provider: "web3forms", message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)) };
-  }
-
-  // Fallback канала 2: классическая HTML-форма FormSubmit (другой транспорт)
+/** Запасной транспорт: HTML-форма FormSubmit */
+async function sendViaFormSubmitForm(payload) {
   await new Promise((resolve) => {
     const frameName = `mail_frame_${Date.now()}`;
     const iframe = document.createElement("iframe");
@@ -449,8 +473,7 @@ async function sendViaChannelTwo(payload) {
       resolve();
     }, 2200);
   });
-
-  return { ok: true, provider: "formsubmit-form", message: "form posted" };
+  return { ok: true, skipped: false, provider: "formsubmit-form", message: "form posted" };
 }
 
 function bindMailActions(payload) {
@@ -465,6 +488,14 @@ function bindMailActions(payload) {
   if (dlBtn) {
     dlBtn.addEventListener("click", () => downloadMailBackup(payload));
   }
+}
+
+function providerLabel(p) {
+  if (p === "apps-script") return "Gmail (Apps Script)";
+  if (p === "web3forms") return "Web3Forms";
+  if (p === "formsubmit") return "FormSubmit";
+  if (p === "formsubmit-form") return "FormSubmit-форма";
+  return p;
 }
 
 async function sendResultEmail(payload) {
@@ -483,51 +514,55 @@ async function sendResultEmail(payload) {
 
   const actionsHtml =
     `<button type="button" class="linkish" id="btn-copy-mail">Скопировать</button> · ` +
-    `<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button>`;
+    `<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button> · ` +
+    `<a href="setup-mail.html">Настроить почту</a>`;
 
-  let ch1 = { ok: false, activation: false, message: "" };
-  let ch2 = { ok: false, provider: "", message: "" };
+  const hasReliable =
+    (MAIL_APPS_SCRIPT_URL && MAIL_APPS_SCRIPT_URL.indexOf("http") === 0) ||
+    (MAIL_WEB3FORMS_KEY && MAIL_WEB3FORMS_KEY.length > 10);
+
+  const results = [];
 
   try {
-    ch1 = await sendViaFormSubmitAjax(payload);
+    results.push(await sendViaAppsScript(payload));
   } catch (err) {
-    console.warn("FormSubmit AJAX:", err);
-    ch1 = { ok: false, activation: false, message: String(err && err.message ? err.message : err) };
+    results.push({ ok: false, skipped: false, provider: "apps-script", message: String(err) });
   }
 
   try {
-    ch2 = await sendViaChannelTwo(payload);
+    results.push(await sendViaWeb3Forms(payload));
   } catch (err) {
-    console.warn("Channel 2:", err);
-    ch2 = { ok: false, provider: "channel2", message: String(err && err.message ? err.message : err) };
+    results.push({ ok: false, skipped: false, provider: "web3forms", message: String(err) });
   }
 
-  const delivered = ch1.ok || ch2.ok;
+  // Второй канал: FormSubmit (JSON + HTML), даже если Web3Forms уже настроен
+  try {
+    results.push(await sendViaFormSubmitAjax(payload));
+  } catch (err) {
+    results.push({ ok: false, skipped: false, provider: "formsubmit", message: String(err) });
+  }
+  try {
+    results.push(await sendViaFormSubmitForm(payload));
+  } catch (err) {
+    results.push({ ok: false, skipped: false, provider: "formsubmit-form", message: String(err) });
+  }
 
-  if (delivered && !ch1.activation) {
-    const via = [
-      ch1.ok ? "FormSubmit" : null,
-      ch2.ok
-        ? ch2.provider === "web3forms"
-          ? "Web3Forms"
-          : ch2.provider === "apps-script"
-            ? "Apps Script"
-            : "FormSubmit-форма"
-        : null,
-    ]
-      .filter(Boolean)
-      .join(" + ");
+  const delivered = results.filter((r) => r.ok && !r.skipped);
+  const via = delivered.map((r) => providerLabel(r.provider)).join(" + ");
+
+  if (delivered.length) {
     el.mailStatus.className = "mail-status ok";
-    el.mailStatus.innerHTML = `Результат отправлен на ${MAIL_TO} (${via}). ${actionsHtml}`;
-  } else if (ch1.activation) {
+    el.mailStatus.innerHTML = `Результат отправлен на ${MAIL_TO}${via ? ` (${via})` : ""}. ${actionsHtml}`;
+  } else if (!hasReliable) {
     el.mailStatus.className = "mail-status bad";
     el.mailStatus.innerHTML =
-      `Подтвердите FormSubmit: откройте письмо на ${MAIL_TO} (и «Спам») и нажмите Activate. ` +
-      `После этого ответы будут приходить. ${actionsHtml}`;
+      `Письма через FormSubmit не доходят. Настройте канал: ` +
+      `<a href="setup-mail.html"><strong>setup-mail.html</strong></a> ` +
+      `(Google Apps Script → Gmail). ${actionsHtml}`;
   } else {
     el.mailStatus.className = "mail-status bad";
     el.mailStatus.innerHTML =
-      `Не удалось отправить автоматически. ${actionsHtml} · ` +
+      `Каналы настроены, но отправка не подтверждена. ${actionsHtml} · ` +
       `<a href="mailto:${MAIL_TO}?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(
         payload.message.slice(0, 1500)
       )}">Открыть письмо</a>`;

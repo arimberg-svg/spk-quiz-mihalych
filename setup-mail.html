@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Настройка почты — тест СПК</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .steps { margin: 0 0 1.25rem; padding-left: 1.2rem; color: var(--text); }
+    .steps li { margin: 0.45rem 0; }
+    code, pre {
+      font-family: ui-monospace, Consolas, monospace;
+      background: #efe9ff;
+      border-radius: 8px;
+    }
+    code { padding: 0.1rem 0.35rem; font-size: 0.9em; }
+    pre {
+      padding: 0.9rem 1rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      border: 1px solid var(--line);
+    }
+    .status { margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <main class="shell">
+    <section class="panel">
+      <p class="eyebrow">У Михалыча</p>
+      <h1>Почта теста</h1>
+      <p class="lead">
+        FormSubmit письма не доставляет. Настройте надёжный канал через
+        <strong>Google Apps Script</strong> (отправка из вашего Gmail) — 2 минуты.
+      </p>
+
+      <h2>Шаги</h2>
+      <ol class="steps">
+        <li>Откройте <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> (войдите в Google-аккаунт, связанный с <code>arimberg@gmail.com</code>).</li>
+        <li>Новый проект → удалите код по умолчанию → вставьте код из файла <code>mail-relay.gs</code> (ниже).</li>
+        <li>Сохраните → <strong>Развернуть</strong> → <strong>Новое развёртывание</strong> → тип <strong>Веб-приложение</strong>.</li>
+        <li>Выполнять от имени: <strong>Меня</strong>. Кто имеет доступ: <strong>Все</strong>.</li>
+        <li>Скопируйте URL веб-приложения и вставьте ниже → «Проверить».</li>
+        <li>Пришлите этот URL в чат Cursor — встрою в тест и выложу на сайт.</li>
+      </ol>
+
+      <pre id="gs-code"></pre>
+      <button type="button" class="btn ghost" id="btn-copy-gs" style="width:auto;margin-bottom:1rem">Скопировать код Apps Script</button>
+
+      <label class="name-field">
+        <span>URL веб-приложения</span>
+        <input id="script-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" />
+      </label>
+      <button type="button" class="btn primary" id="btn-test">Проверить отправку на arimberg@gmail.com</button>
+      <p id="status" class="mail-status status hidden"></p>
+
+      <p class="lead" style="margin-top:1.25rem;margin-bottom:0">
+        Альтернатива: <a href="https://web3forms.com/" target="_blank" rel="noopener">web3forms.com</a> →
+        введите <code>arimberg@gmail.com</code> → Access Key из письма пришлите в чат.
+      </p>
+      <p style="margin-top:1rem"><a href="./">← К тесту</a></p>
+    </section>
+  </main>
+  <script>
+    const GS = `function doPost(e) {
+  try {
+    var data = {};
+    if (e.postData && e.postData.contents) {
+      data = JSON.parse(e.postData.contents);
+    }
+    var to = data.to || "arimberg@gmail.com";
+    var subject = data.subject || "Тест СПК";
+    var body = data.message || JSON.stringify(data, null, 2);
+    MailApp.sendEmail({ to: to, subject: subject, body: body });
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, message: String(err) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet() {
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true, service: "spk-quiz-mail-relay" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+    document.getElementById("gs-code").textContent = GS;
+    document.getElementById("btn-copy-gs").onclick = async () => {
+      await navigator.clipboard.writeText(GS);
+      document.getElementById("btn-copy-gs").textContent = "Скопировано";
+    };
+
+    const status = document.getElementById("status");
+    document.getElementById("btn-test").onclick = async () => {
+      const url = document.getElementById("script-url").value.trim();
+      status.classList.remove("hidden", "ok", "bad");
+      if (!url) {
+        status.classList.add("bad");
+        status.textContent = "Вставьте URL веб-приложения.";
+        return;
+      }
+      status.textContent = "Отправляем пробное письмо…";
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            to: "arimberg@gmail.com",
+            subject: "Тест СПК: проверка канала Apps Script",
+            message:
+              "Если это письмо пришло — канал работает. Вставьте этот URL в чат Cursor:\n" + url,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.success === true || res.ok) {
+          status.classList.add("ok");
+          status.textContent =
+            "Запрос принят. Проверьте arimberg@gmail.com (и Спам). URL скопируйте в чат Cursor.";
+          await navigator.clipboard.writeText(url).catch(() => {});
+        } else {
+          status.classList.add("bad");
+          status.textContent = "Ошибка: " + (data.message || res.status);
+        }
+      } catch (err) {
+        status.classList.add("bad");
+        status.textContent =
+          "Сеть/CORS. Если развёртывание «Все» — подождите 1–2 мин и повторите. " + err;
+      }
+    };
+  </script>
+</body>
+</html>
