@@ -11,9 +11,17 @@
 ## Старт
 
 Обязательные поля: **ФИО**, **магазин**, **должность**.  
-После прохождения результат уходит на **arimberg@gmail.com** (FormSubmit).
+После прохождения результат уходит на **arimberg@gmail.com** по двум каналам:
 
-> При первом письме FormSubmit может прислать письмо подтверждения на этот адрес — нужно один раз подтвердить.
+1. **FormSubmit** (JSON AJAX) — основной  
+2. **FormSubmit HTML-форма** — запасной транспорт  
+
+Опционально независимый 2-й канал:
+
+- Access Key с [web3forms.com](https://web3forms.com) → вставьте в `MAIL_WEB3FORMS_KEY` в `app.js`  
+- или разверните `mail-relay.gs` в Google Apps Script → URL в `MAIL_APPS_SCRIPT_URL`
+
+> Если FormSubmit пришлёт письмо Activate — подтвердите один раз (проверьте «Спам»).
 
 ## Ссылка
 

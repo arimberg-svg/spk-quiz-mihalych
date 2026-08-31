@@ -1,5 +1,16 @@
 const LETTERS = ["a", "b", "c", "d"];
-const MAIL_ENDPOINT = "https://formsubmit.co/ajax/arimberg@gmail.com";
+const MAIL_TO = "arimberg@gmail.com";
+const MAIL_FORMSUBMIT_AJAX = `https://formsubmit.co/ajax/${MAIL_TO}`;
+const MAIL_FORMSUBMIT_FORM = `https://formsubmit.co/${MAIL_TO}`;
+/**
+ * Канал 2 (независимый). Заполните ОДИН из вариантов:
+ * - MAIL_WEB3FORMS_KEY: Access Key с https://web3forms.com (приходит на почту)
+ * - MAIL_APPS_SCRIPT_URL: URL веб-приложения из mail-relay.gs
+ * Если оба пустые — канал 2 = HTML-форма FormSubmit (запасной транспорт).
+ */
+const MAIL_WEB3FORMS_KEY = "";
+const MAIL_WEB3FORMS_URL = "https://api.web3forms.com/submit";
+const MAIL_APPS_SCRIPT_URL = "";
 
 let questions = [];
 let answers = [];
@@ -236,102 +247,50 @@ function buildMailPayload(rows, correct, partial, total, pct, byTopic) {
     })
     .join("\n\n");
 
-  const clip = (text, max = 9000) =>
+  const clip = (text, max = 4500) =>
     text.length <= max ? text : `${text.slice(0, max)}\n…(обрезано)`;
 
+  const subject = `Тест СПК: ${profile.name} · ${profile.store} · ${profile.role} · ${correct}/${total}`;
+  const message = [
+    "Результат теста СПК «У Михалыча»",
+    `ФИО: ${profile.name}`,
+    `Магазин: ${profile.store}`,
+    `Должность: ${profile.role}`,
+    `Балл: ${correct}/${total} (${pct}%)`,
+    `Частично: ${partial}`,
+    "",
+    "По темам:",
+    clip(topicLines, 2000),
+    "",
+    "Ошибки:",
+    clip(wrongLines || "Ошибок нет", 2500),
+    "",
+    "Ответы:",
+    clip(allAnswers, 3500),
+  ].join("\n");
+
   return {
-    _subject: `Тест СПК: ${profile.name} · ${profile.store} · ${profile.role} · ${correct}/${total}`,
-    _template: "table",
-    _captcha: "false",
-    _honey: "",
-    name: profile.name,
-    email: "arimberg@gmail.com",
+    subject,
+    name: profile.name || "СПК тест",
+    email: "noreply@um-ural.ru",
+    replyto: MAIL_TO,
     store: profile.store,
     position: profile.role,
     score: `${correct}/${total}`,
     percent: `${pct}%`,
     partial: String(partial),
-    topics: clip(topicLines, 3000),
-    mistakes: clip(wrongLines || "Ошибок нет", 6000),
-    answers: clip(allAnswers, 9000),
-    message: `Результат теста СПК\nФИО: ${profile.name}\nМагазин: ${profile.store}\nДолжность: ${profile.role}\nБалл: ${correct}/${total} (${pct}%)\nЧастично: ${partial}`,
+    topics: clip(topicLines, 2000),
+    mistakes: clip(wrongLines || "Ошибок нет", 2500),
+    answers: clip(allAnswers, 3500),
+    message,
   };
-}
-
-function payloadToFormData(payload) {
-  const fd = new FormData();
-  Object.entries(payload).forEach(([key, value]) => {
-    fd.append(key, value == null ? "" : String(value));
-  });
-  return fd;
-}
-
-function sendViaHiddenForm(payload) {
-  return new Promise((resolve) => {
-    const frameName = `mail_frame_${Date.now()}`;
-    const iframe = document.createElement("iframe");
-    iframe.name = frameName;
-    iframe.title = "mail";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
-
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = "https://formsubmit.co/arimberg@gmail.com";
-    form.target = frameName;
-    form.style.display = "none";
-
-    Object.entries(payload).forEach(([key, value]) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = key;
-      input.value = value == null ? "" : String(value);
-      form.appendChild(input);
-    });
-
-    const next = document.createElement("input");
-    next.type = "hidden";
-    next.name = "_next";
-    next.value = "https://formsubmit.co/thanks.html";
-    form.appendChild(next);
-
-    document.body.appendChild(form);
-    form.submit();
-
-    window.setTimeout(() => {
-      form.remove();
-      iframe.remove();
-      resolve(true);
-    }, 2500);
-  });
-}
-
-function sendViaBeacon(payload) {
-  try {
-    const fd = payloadToFormData(payload);
-    if (navigator.sendBeacon) {
-      return navigator.sendBeacon(MAIL_ENDPOINT, fd);
-    }
-  } catch (err) {
-    console.warn("Beacon mail:", err);
-  }
-  return false;
 }
 
 function buildMailText(payload) {
   return [
-    payload._subject,
+    payload.subject,
     "",
     payload.message,
-    "",
-    "Темы:",
-    payload.topics,
-    "",
-    "Ошибки:",
-    payload.mistakes,
-    "",
-    "Все ответы:",
-    payload.answers,
   ].join("\n");
 }
 
@@ -356,86 +315,145 @@ async function copyMailBackup(payload) {
   return false;
 }
 
-async function sendResultEmail(payload) {
-  if (!el.mailStatus) return;
-  el.mailStatus.className = "mail-status";
-  el.mailStatus.textContent = "Отправляем результат на arimberg@gmail.com (два канала)…";
+/** Канал 1: FormSubmit AJAX (JSON) — основной рабочий канал */
+async function sendViaFormSubmitAjax(payload) {
+  const body = {
+    name: payload.name,
+    email: payload.email,
+    _replyto: payload.email,
+    _subject: payload.subject,
+    _template: "table",
+    _captcha: "false",
+    _honey: "",
+    _url: typeof location !== "undefined" ? location.href : "https://arimberg-svg.github.io/spk-quiz-mihalych/",
+    store: payload.store,
+    position: payload.position,
+    score: payload.score,
+    percent: payload.percent,
+    partial: payload.partial,
+    topics: payload.topics,
+    mistakes: payload.mistakes,
+    answers: payload.answers,
+    message: payload.message,
+  };
 
-  try {
-    localStorage.setItem(
-      "spkQuizLastResult",
-      JSON.stringify({ at: new Date().toISOString(), payload })
-    );
-  } catch (_) {
-    /* ignore */
-  }
+  const res = await fetch(MAIL_FORMSUBMIT_AJAX, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  const ok = data.success === true || data.success === "true";
+  return {
+    ok,
+    activation: /confirm|activation|activate|подтверд/i.test(String(data.message || "")),
+    message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)),
+  };
+}
 
-  let ajaxOk = false;
-  let formOk = false;
-  let beaconOk = false;
-  let activationNeeded = false;
-
-  // Channel 1: FormSubmit AJAX
-  try {
-    const res = await fetch(MAIL_ENDPOINT, {
+/** Канал 2: Web3Forms / Apps Script / FormSubmit HTML-форма */
+async function sendViaChannelTwo(payload) {
+  if (MAIL_APPS_SCRIPT_URL && MAIL_APPS_SCRIPT_URL.indexOf("http") === 0) {
+    const res = await fetch(MAIL_APPS_SCRIPT_URL, {
       method: "POST",
-      headers: { Accept: "application/json" },
-      body: payloadToFormData(payload),
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        to: MAIL_TO,
+        subject: payload.subject,
+        message: payload.message,
+        name: payload.name,
+        store: payload.store,
+        position: payload.position,
+        score: payload.score,
+      }),
     });
     const data = await res.json().catch(() => ({}));
-    const success = data.success === true || data.success === "true";
-    if (success) {
-      ajaxOk = true;
-    } else {
-      const msg = String(data.message || "");
-      if (/confirm|activation|activate|подтверд/i.test(msg)) {
-        activationNeeded = true;
-      }
-      console.warn("FormSubmit AJAX:", msg || res.status);
-    }
-  } catch (err) {
-    console.warn("FormSubmit AJAX:", err);
+    const ok = data.success === true || res.ok;
+    return { ok, provider: "apps-script", message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)) };
   }
 
-  // Channel 2: hidden form POST (parallel backup)
-  try {
-    await sendViaHiddenForm(payload);
-    formOk = true;
-  } catch (err) {
-    console.warn("FormSubmit form:", err);
+  if (MAIL_WEB3FORMS_KEY && MAIL_WEB3FORMS_KEY.length > 10) {
+    const res = await fetch(MAIL_WEB3FORMS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        access_key: MAIL_WEB3FORMS_KEY,
+        subject: payload.subject,
+        from_name: "Тест СПК У Михалыча",
+        name: payload.name,
+        email: payload.email,
+        replyto: payload.email,
+        store: payload.store,
+        position: payload.position,
+        score: payload.score,
+        percent: payload.percent,
+        message: payload.message,
+        botcheck: false,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    const ok = data.success === true || data.success === "true";
+    return { ok, provider: "web3forms", message: String(data.message || (ok ? "ok" : `HTTP ${res.status}`)) };
   }
 
-  // Channel 3: sendBeacon
-  beaconOk = sendViaBeacon(payload);
+  // Fallback канала 2: классическая HTML-форма FormSubmit (другой транспорт)
+  await new Promise((resolve) => {
+    const frameName = `mail_frame_${Date.now()}`;
+    const iframe = document.createElement("iframe");
+    iframe.name = frameName;
+    iframe.title = "mail";
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
 
-  const delivered = ajaxOk || formOk || beaconOk;
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = MAIL_FORMSUBMIT_FORM;
+    form.target = frameName;
+    form.acceptCharset = "UTF-8";
+    form.style.display = "none";
 
-  if (delivered && !activationNeeded) {
-    el.mailStatus.className = "mail-status ok";
-    el.mailStatus.innerHTML =
-      "Результат отправлен на arimberg@gmail.com. " +
-      '<button type="button" class="linkish" id="btn-copy-mail">Скопировать</button> · ' +
-      '<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button>';
-  } else if (activationNeeded) {
-    el.mailStatus.className = "mail-status bad";
-    el.mailStatus.innerHTML =
-      "FormSubmit ждёт подтверждения на arimberg@gmail.com. " +
-      "После подтверждения письма начнут приходить. " +
-      '<button type="button" class="linkish" id="btn-copy-mail">Скопировать результат</button> · ' +
-      '<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button>';
-  } else {
-    el.mailStatus.className = "mail-status bad";
-    el.mailStatus.innerHTML =
-      "Автоотправка не подтверждена. Сохраните результат и перешлите на arimberg@gmail.com. " +
-      '<button type="button" class="linkish" id="btn-copy-mail">Скопировать</button> · ' +
-      '<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button> · ' +
-      '<a href="mailto:arimberg@gmail.com?subject=' +
-      encodeURIComponent(payload._subject) +
-      "&body=" +
-      encodeURIComponent(payload.message + "\n\n" + (payload.mistakes || "").slice(0, 1200)) +
-      '">Открыть письмо</a>';
-  }
+    const fields = {
+      name: payload.name,
+      email: payload.email,
+      _subject: payload.subject,
+      _template: "table",
+      _captcha: "false",
+      _honey: "",
+      _next: "https://formsubmit.co/thanks.html",
+      store: payload.store,
+      position: payload.position,
+      score: payload.score,
+      percent: payload.percent,
+      message: payload.message,
+    };
 
+    Object.entries(fields).forEach(([key, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value == null ? "" : String(value);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    window.setTimeout(() => {
+      form.remove();
+      iframe.remove();
+      resolve();
+    }, 2200);
+  });
+
+  return { ok: true, provider: "formsubmit-form", message: "form posted" };
+}
+
+function bindMailActions(payload) {
   const copyBtn = document.getElementById("btn-copy-mail");
   const dlBtn = document.getElementById("btn-dl-mail");
   if (copyBtn) {
@@ -447,6 +465,75 @@ async function sendResultEmail(payload) {
   if (dlBtn) {
     dlBtn.addEventListener("click", () => downloadMailBackup(payload));
   }
+}
+
+async function sendResultEmail(payload) {
+  if (!el.mailStatus) return;
+  el.mailStatus.className = "mail-status";
+  el.mailStatus.textContent = `Отправляем результат на ${MAIL_TO}…`;
+
+  try {
+    localStorage.setItem(
+      "spkQuizLastResult",
+      JSON.stringify({ at: new Date().toISOString(), payload })
+    );
+  } catch (_) {
+    /* ignore */
+  }
+
+  const actionsHtml =
+    `<button type="button" class="linkish" id="btn-copy-mail">Скопировать</button> · ` +
+    `<button type="button" class="linkish" id="btn-dl-mail">Скачать txt</button>`;
+
+  let ch1 = { ok: false, activation: false, message: "" };
+  let ch2 = { ok: false, provider: "", message: "" };
+
+  try {
+    ch1 = await sendViaFormSubmitAjax(payload);
+  } catch (err) {
+    console.warn("FormSubmit AJAX:", err);
+    ch1 = { ok: false, activation: false, message: String(err && err.message ? err.message : err) };
+  }
+
+  try {
+    ch2 = await sendViaChannelTwo(payload);
+  } catch (err) {
+    console.warn("Channel 2:", err);
+    ch2 = { ok: false, provider: "channel2", message: String(err && err.message ? err.message : err) };
+  }
+
+  const delivered = ch1.ok || ch2.ok;
+
+  if (delivered && !ch1.activation) {
+    const via = [
+      ch1.ok ? "FormSubmit" : null,
+      ch2.ok
+        ? ch2.provider === "web3forms"
+          ? "Web3Forms"
+          : ch2.provider === "apps-script"
+            ? "Apps Script"
+            : "FormSubmit-форма"
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" + ");
+    el.mailStatus.className = "mail-status ok";
+    el.mailStatus.innerHTML = `Результат отправлен на ${MAIL_TO} (${via}). ${actionsHtml}`;
+  } else if (ch1.activation) {
+    el.mailStatus.className = "mail-status bad";
+    el.mailStatus.innerHTML =
+      `Подтвердите FormSubmit: откройте письмо на ${MAIL_TO} (и «Спам») и нажмите Activate. ` +
+      `После этого ответы будут приходить. ${actionsHtml}`;
+  } else {
+    el.mailStatus.className = "mail-status bad";
+    el.mailStatus.innerHTML =
+      `Не удалось отправить автоматически. ${actionsHtml} · ` +
+      `<a href="mailto:${MAIL_TO}?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(
+        payload.message.slice(0, 1500)
+      )}">Открыть письмо</a>`;
+  }
+
+  bindMailActions(payload);
 }
 
 function grade() {
