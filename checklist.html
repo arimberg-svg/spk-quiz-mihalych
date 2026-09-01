@@ -268,7 +268,31 @@
       </section>
 
       <section class="card">
-        <h2>2. Комфорт работы и сложности</h2>
+        <h2>2. Ценники: история печати и контроль</h2>
+        <div class="block">
+          <p class="q">Пользуется «Историей печати ценников»</p>
+          <div class="pills">
+            <label><input type="radio" name="tags_hist" value="yes" /> да, регулярно</label>
+            <label><input type="radio" name="tags_hist" value="sometimes" /> иногда</label>
+            <label><input type="radio" name="tags_hist" value="no" /> нет / не умеет</label>
+            <label><input type="radio" name="tags_hist" value="unknown" /> не знает, что это</label>
+          </div>
+        </div>
+        <label class="field">Зачем нужен контроль ценников? (своими словами)<textarea name="tags_why"></textarea></label>
+        <label class="field">Как работаете: кто печатает, как сверяете зал и кассу, что делаете, если цена на ценнике и на кассе разная<textarea name="tags_how"></textarea></label>
+        <div class="block">
+          <p class="q">Понимает, как смотреть историю печати и контролировать ценники в зале</p>
+          <div class="pills">
+            <label><input type="radio" name="tags_skill" value="ok" /> уверенно</label>
+            <label><input type="radio" name="tags_skill" value="part" /> частично</label>
+            <label><input type="radio" name="tags_skill" value="demo" /> нужна демонстрация</label>
+          </div>
+        </div>
+        <label class="field">Комментарий / что показать на месте<textarea name="tags_note"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2>3. Комфорт работы и сложности</h2>
         <div class="block">
           <p class="q">Насколько комфортно работать в текущей роли СПК</p>
           <div class="pills">
@@ -285,7 +309,7 @@
       </section>
 
       <section class="card">
-        <h2>3. Работа в паре с другим СПК</h2>
+        <h2>4. Работа в паре с другим СПК</h2>
         <div class="block">
           <p class="q">Работает в паре с другим СПК</p>
           <div class="pills">
@@ -309,7 +333,7 @@
       </section>
 
       <section class="card">
-        <h2>4. Коллектив и атмосфера в смене</h2>
+        <h2>5. Коллектив и атмосфера в смене</h2>
         <div class="block">
           <p class="q">Климат в коллективе</p>
           <div class="pills">
@@ -326,7 +350,7 @@
       </section>
 
       <section class="card">
-        <h2>5. База знаний, регламенты, ОС, сроки</h2>
+        <h2>6. База знаний, регламенты, ОС, сроки</h2>
         <p class="hint">На встрече показать и отметить:</p>
         <div class="checks">
           <label class="check"><input type="checkbox" name="kb_read" /> Показано, как читать инструкции в базе знаний</label>
@@ -340,7 +364,7 @@
       </section>
 
       <section class="card">
-        <h2>6. Итог встречи и договорённости</h2>
+        <h2>7. Итог встречи и договорённости</h2>
         <label class="field">3 главные договорённости / фокуса на ближайшие 2 недели<textarea name="focus" style="min-height:110px"></textarea></label>
         <div class="block">
           <p class="q">Нужен повторный разбор слабых тем теста</p>
@@ -392,6 +416,11 @@
       tc_need: "Что нужно для работы",
       tc_fact: "Отмечает в момент факта / контролирует смену",
       tc_note: "Комментарий TargControl",
+      tags_hist: "Пользуется историей печати ценников",
+      tags_why: "Зачем нужен контроль ценников",
+      tags_how: "Как работаете с ценниками",
+      tags_skill: "Понимает историю печати / контроль ценников",
+      tags_note: "Комментарий по ценникам",
       comfort: "Комфорт в роли СПК (1–5)",
       comfort_plus: "Что помогает быть уверенным",
       comfort_hard: "Что сложнее / затыки",
@@ -434,6 +463,7 @@
       part: "частично",
       demo: "нужна демонстрация",
       help: "нужна помощь",
+      unknown: "не знает, что это",
     };
 
     const form = document.getElementById("sheet");
