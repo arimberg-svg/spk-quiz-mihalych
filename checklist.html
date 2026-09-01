@@ -143,6 +143,20 @@
     }
     .btn.primary { background: var(--p); color: #fff; }
     .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .mail-status {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #faf8fc;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .mail-status.ok { background: #e8f6ee; color: var(--ok); border-color: rgba(31,122,77,.3); }
+    .mail-status.bad { background: #efe9ff; color: var(--p); border-color: rgba(66,8,168,.28); }
+    .mail-status.hidden { display: none; }
     .signs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .sign { border-top: 1px solid var(--line); padding-top: 28px; color: var(--muted); font-size: 13px; font-weight: 700; }
     .foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
@@ -163,7 +177,8 @@
     <a href="/spk-quiz-mihalych/">← Тест СПК</a>
     <div class="actions">
       <button class="btn ghost" type="button" id="btn-clear">Очистить</button>
-      <button class="btn primary" type="button" id="btn-print">Печать / PDF</button>
+      <button class="btn ghost" type="button" id="btn-print">Печать / PDF</button>
+      <button class="btn primary" type="button" id="btn-send">Отправить на почту</button>
     </div>
   </div>
 
@@ -171,7 +186,8 @@
     <header class="hero">
       <p class="eyebrow">Сеть «У Михалыча» · розница</p>
       <h1>Чек-лист после <span>тестирования СПК</span></h1>
-      <p class="lead">Заполняется на встрече по итогам теста. Один лист — один сотрудник. Листы собираются для анализа.</p>
+      <p class="lead">Заполняется на встрече по итогам теста. Один лист — один сотрудник. Ответы уходят на arimberg@gmail.com по двум каналам.</p>
+      <p id="mail-status" class="mail-status hidden" aria-live="polite"></p>
     </header>
 
     <form id="sheet">
@@ -339,6 +355,9 @@
           <div class="sign">Сотрудник<br />________________ / _______________</div>
           <div class="sign">Проводящий встречу<br />________________ / _______________</div>
         </div>
+        <div class="no-print" style="margin-top:16px">
+          <button class="btn primary" type="button" id="btn-send-bottom" style="width:100%">Отправить на arimberg@gmail.com</button>
+        </div>
       </section>
     </form>
 
@@ -347,7 +366,78 @@
 
   <script>
     const KEY = "spk-post-test-checklist";
+    const MAIL_TO = "arimberg@gmail.com";
+    const MAIL_WEB3FORMS_KEY = "75e8c010-1d63-4fb9-b6c9-797553dcbeca";
+    const MAIL_WEB3FORMS_URL = "https://api.web3forms.com/submit";
+    const MAIL_FORMSUBMIT_AJAX = "https://formsubmit.co/ajax/" + MAIL_TO;
+    const MAIL_FORMSUBMIT_FORM = "https://formsubmit.co/" + MAIL_TO;
+
+    const LABELS = {
+      fio: "ФИО",
+      store: "Магазин",
+      role: "Должность",
+      date: "Дата встречи",
+      phone: "Телефон",
+      score: "Балл теста",
+      phone_saved: "Телефон записан в базу / чат",
+      photo: "Фото сделано / сохранено",
+      form_ok: "Форма по сезону",
+      form_notes: "Замечания по форме",
+      badge_who: "Бейджи на смене",
+      badge_qr: "На бейдже ФИО + должность + QR",
+      badge_print: "Сколько бейджей допечатать / кому",
+      tc_use: "Работает с TargControl",
+      tc_how: "Как отмечается",
+      tc_skill: "Понимает программу",
+      tc_need: "Что нужно для работы",
+      tc_fact: "Отмечает в момент факта / контролирует смену",
+      tc_note: "Комментарий TargControl",
+      comfort: "Комфорт в роли СПК (1–5)",
+      comfort_plus: "Что помогает быть уверенным",
+      comfort_hard: "Что сложнее / затыки",
+      comfort_need: "Чего не хватает",
+      pair: "Работает в паре с другим СПК",
+      pair_name: "ФИО напарника",
+      pair_zones: "Как делится ответственность",
+      pair_good: "Что в паре получается хорошо",
+      pair_bad: "Трения / дублирование",
+      pair_help: "Нужна помощь в настройке пары",
+      pair_note: "Комментарий по паре",
+      team: "Климат в коллективе (1–5)",
+      team_people: "Опора / конфликтные точки",
+      team_fb: "Реакция смены на задачи и ОС",
+      team_fix: "Что улучшить в команде",
+      kb_read: "Показано: читать инструкции в БЗ",
+      kb_find: "Показано: искать регламенты",
+      kb_fb: "Показано: как давать ОС",
+      kb_deadlines: "Подчёркнуто: задачи вовремя",
+      kb_practice: "Сам нашёл 1 инструкцию / регламент",
+      kb_block: "Что мешает делать задачи вовремя",
+      kb_support: "Какая поддержка нужна",
+      focus: "3 договорённости на 2 недели",
+      retest: "Нужен повторный разбор слабых тем",
+      retest_topics: "Темы для разбора",
+      host_note: "Комментарий проводящего",
+    };
+
+    const VALUES = {
+      ok: "в порядке",
+      notes: "есть замечания",
+      all: "у всех",
+      some: "не у всех",
+      none: "нет / не печатали",
+      yes: "да",
+      no: "нет",
+      old: "нет / устарели",
+      print: "нужно допечатать",
+      sometimes: "иногда",
+      part: "частично",
+      demo: "нужна демонстрация",
+      help: "нужна помощь",
+    };
+
     const form = document.getElementById("sheet");
+    const statusEl = document.getElementById("mail-status");
 
     function save() {
       const data = {};
@@ -370,13 +460,184 @@
       });
     }
 
+    function pretty(val) {
+      if (val === true || val === "true") return "да";
+      if (val === false || val === "false" || val === "") return "—";
+      return VALUES[val] || String(val);
+    }
+
+    function collect() {
+      const data = {};
+      form.querySelectorAll("[name]").forEach((el) => {
+        const n = el.name;
+        if (!n) return;
+        if (el.type === "checkbox") data[n] = el.checked;
+        else if (el.type === "radio") {
+          if (el.checked) data[n] = el.value;
+          else if (!(n in data)) data[n] = "";
+        } else data[n] = (el.value || "").trim();
+      });
+      return data;
+    }
+
+    function buildPayload() {
+      const d = collect();
+      const lines = ["Чек-лист после тестирования СПК «У Михалыча»", ""];
+      Object.keys(LABELS).forEach((key) => {
+        lines.push(LABELS[key] + ": " + pretty(d[key]));
+      });
+      const fio = d.fio || "без ФИО";
+      const store = d.store || "магазин не указан";
+      const role = d.role || "СПК";
+      return {
+        subject: "Чек-лист СПК: " + fio + " · " + store,
+        name: fio,
+        email: "noreply@um-ural.ru",
+        store: store,
+        position: role,
+        score: d.score || "",
+        message: lines.join("\n"),
+      };
+    }
+
+    async function sendWeb3Forms(payload) {
+      const res = await fetch(MAIL_WEB3FORMS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          access_key: MAIL_WEB3FORMS_KEY,
+          subject: payload.subject,
+          from_name: "Чек-лист СПК У Михалыча",
+          name: payload.name,
+          email: payload.email,
+          replyto: payload.email,
+          store: payload.store,
+          position: payload.position,
+          score: payload.score,
+          message: payload.message,
+          botcheck: false,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const ok = data.success === true || data.success === "true";
+      return { ok, provider: "Web3Forms", message: String(data.message || (ok ? "ok" : "HTTP " + res.status)) };
+    }
+
+    async function sendFormSubmitAjax(payload) {
+      const res = await fetch(MAIL_FORMSUBMIT_AJAX, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          name: payload.name,
+          email: payload.email,
+          _replyto: payload.email,
+          _subject: payload.subject,
+          _template: "table",
+          _captcha: "false",
+          _honey: "",
+          _url: location.href,
+          store: payload.store,
+          position: payload.position,
+          score: payload.score,
+          message: payload.message,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const ok = data.success === true || data.success === "true";
+      return { ok, provider: "FormSubmit", message: String(data.message || (ok ? "ok" : "HTTP " + res.status)) };
+    }
+
+    async function sendFormSubmitForm(payload) {
+      await new Promise((resolve) => {
+        const frameName = "mail_frame_" + Date.now();
+        const iframe = document.createElement("iframe");
+        iframe.name = frameName;
+        iframe.title = "mail";
+        iframe.style.display = "none";
+        document.body.appendChild(iframe);
+        const mailForm = document.createElement("form");
+        mailForm.method = "POST";
+        mailForm.action = MAIL_FORMSUBMIT_FORM;
+        mailForm.target = frameName;
+        mailForm.acceptCharset = "UTF-8";
+        mailForm.style.display = "none";
+        const fields = {
+          name: payload.name,
+          email: payload.email,
+          _subject: payload.subject,
+          _template: "table",
+          _captcha: "false",
+          _honey: "",
+          _next: "https://formsubmit.co/thanks.html",
+          store: payload.store,
+          position: payload.position,
+          score: payload.score,
+          message: payload.message,
+        };
+        Object.entries(fields).forEach(([key, value]) => {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = value == null ? "" : String(value);
+          mailForm.appendChild(input);
+        });
+        document.body.appendChild(mailForm);
+        mailForm.submit();
+        window.setTimeout(() => {
+          mailForm.remove();
+          iframe.remove();
+          resolve();
+        }, 2200);
+      });
+      return { ok: true, provider: "FormSubmit-форма", message: "form posted" };
+    }
+
+    function setStatus(kind, text) {
+      statusEl.className = "mail-status " + kind;
+      statusEl.textContent = text;
+      statusEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    async function sendMail() {
+      const d = collect();
+      if (!d.fio) {
+        setStatus("bad", "Укажите ФИО — без него лист не отправим.");
+        form.querySelector("[name=fio]").focus();
+        return;
+      }
+      const payload = buildPayload();
+      const buttons = [document.getElementById("btn-send"), document.getElementById("btn-send-bottom")];
+      buttons.forEach((b) => { b.disabled = true; });
+      setStatus("", "Отправляем на " + MAIL_TO + " по двум каналам…");
+
+      const results = [];
+      try { results.push(await sendWeb3Forms(payload)); }
+      catch (err) { results.push({ ok: false, provider: "Web3Forms", message: String(err) }); }
+      try { results.push(await sendFormSubmitAjax(payload)); }
+      catch (err) { results.push({ ok: false, provider: "FormSubmit", message: String(err) }); }
+      try { results.push(await sendFormSubmitForm(payload)); }
+      catch (err) { results.push({ ok: false, provider: "FormSubmit-форма", message: String(err) }); }
+
+      const ok = results.filter((r) => r.ok);
+      const via = ok.map((r) => r.provider).join(" + ");
+      if (ok.length) {
+        setStatus("ok", "Лист отправлен на " + MAIL_TO + (via ? " (" + via + ")" : "") + ".");
+      } else {
+        setStatus("bad", "Не подтвердилась отправка. Нажмите «Печать / PDF» или напишите на " + MAIL_TO + ".");
+      }
+      buttons.forEach((b) => { b.disabled = false; });
+    }
+
     form.addEventListener("input", save);
     form.addEventListener("change", save);
     document.getElementById("btn-print").onclick = () => window.print();
+    document.getElementById("btn-send").onclick = sendMail;
+    document.getElementById("btn-send-bottom").onclick = sendMail;
     document.getElementById("btn-clear").onclick = () => {
       if (!confirm("Очистить заполненный лист на этом устройстве?")) return;
       form.reset();
       localStorage.removeItem(KEY);
+      statusEl.className = "mail-status hidden";
     };
     load();
   </script>
