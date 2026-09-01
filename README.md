@@ -25,7 +25,11 @@
 
 ## Ссылка
 
-https://arimberg-svg.github.io/spk-quiz-mihalych/
+Тест: https://arimberg-svg.github.io/spk-quiz-mihalych/
+
+Чек-лист после тестирования: **https://arimberg-svg.github.io/spk-quiz-mihalych/checklist.html**
+
+Заполняется на встрече по итогам теста. Можно заполнить с телефона или распечатать.
 
 ## Стек
 

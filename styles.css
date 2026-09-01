@@ -510,6 +510,8 @@ select option { background: #fff; color: var(--text); }
 .muted { color: var(--muted); margin-top: 0.35rem; }
 .sample { margin-top: 0.4rem; color: var(--text); }
 
+a { color: var(--brand); font-weight: 750; }
+
 .foot {
   text-align: center;
   color: var(--muted);

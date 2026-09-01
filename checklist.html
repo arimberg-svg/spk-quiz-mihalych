@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Чек-лист после тестирования СПК — У Михалыча</title>
+  <meta name="description" content="Чек-лист встречи по итогам теста СПК сети «У Михалыча»: форма, бейджи, TargControl, комфорт, пара, коллектив, база знаний." />
+  <meta name="theme-color" content="#4208a8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@600;700&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --p: #4208a8;
+      --p2: #5b21d6;
+      --bg: #f7f4ff;
+      --paper: #ffffff;
+      --ink: #1a1033;
+      --muted: #5c5278;
+      --line: rgba(66, 8, 168, 0.14);
+      --soft: rgba(66, 8, 168, 0.08);
+      --ok: #1f7a4d;
+      --radius: 16px;
+      --font: "Manrope", system-ui, sans-serif;
+      --display: "Geologica", "Manrope", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.45;
+    }
+    .glow {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(900px 480px at 12% -10%, rgba(66, 8, 168, 0.14), transparent 60%),
+        radial-gradient(700px 420px at 92% 0%, rgba(107, 61, 255, 0.1), transparent 55%),
+        linear-gradient(180deg, #fff 0%, #f7f4ff 45%, #efe9ff 100%);
+    }
+    .bar {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 16px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .bar a { color: var(--p); font-weight: 800; text-decoration: none; font-size: 13px; }
+    .bar .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .wrap {
+      position: relative; z-index: 1;
+      width: min(820px, calc(100% - 28px));
+      margin: 20px auto 48px;
+    }
+    .hero {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px 22px 18px;
+      box-shadow: 0 10px 28px rgba(66, 8, 168, 0.06);
+      margin-bottom: 14px;
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--p2);
+    }
+    h1 {
+      font-family: var(--display);
+      font-size: clamp(26px, 5vw, 36px);
+      line-height: 1.1;
+      margin: 0 0 8px;
+      letter-spacing: -.02em;
+    }
+    h1 span { color: var(--p); }
+    .lead { margin: 0; color: var(--muted); font-weight: 600; }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 20px 16px;
+      margin-bottom: 12px;
+    }
+    .card h2 {
+      font-family: var(--display);
+      font-size: 18px;
+      margin: 0 0 12px;
+      color: var(--p);
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--p);
+    }
+    .grid { display: grid; gap: 12px; }
+    .grid.two { grid-template-columns: 1fr 1fr; }
+    label.field { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+    input[type="text"], input[type="tel"], input[type="date"], textarea {
+      width: 100%;
+      font: inherit;
+      font-weight: 600;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    input:focus, textarea:focus { outline: none; border-color: var(--p2); box-shadow: 0 0 0 3px rgba(91,33,214,.12); }
+    .checks { display: grid; gap: 8px; }
+    .check {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-weight: 650; cursor: pointer;
+    }
+    .check input { margin-top: 3px; accent-color: var(--p); width: 18px; height: 18px; flex: 0 0 auto; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pills label {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      font-weight: 750;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .pills input { accent-color: var(--p); }
+    .pills label:has(input:checked) {
+      border-color: var(--p);
+      background: var(--soft);
+      color: var(--p);
+    }
+    .q { margin: 0 0 6px; font-weight: 800; }
+    .block { margin-bottom: 14px; }
+    .hint { margin: 0 0 10px; color: var(--muted); font-size: 13px; font-weight: 600; }
+    .btn {
+      appearance: none; border: 0; cursor: pointer;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font: inherit; font-weight: 800;
+    }
+    .btn.primary { background: var(--p); color: #fff; }
+    .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .signs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .sign { border-top: 1px solid var(--line); padding-top: 28px; color: var(--muted); font-size: 13px; font-weight: 700; }
+    .foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+    @media (max-width: 640px) {
+      .grid.two, .signs { grid-template-columns: 1fr; }
+    }
+    @media print {
+      .glow, .bar, .no-print { display: none !important; }
+      body { background: #fff; }
+      .wrap { width: auto; margin: 0; }
+      .hero, .card { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glow" aria-hidden="true"></div>
+  <div class="bar no-print">
+    <a href="./">← Тест СПК</a>
+    <div class="actions">
+      <button class="btn ghost" type="button" id="btn-clear">Очистить</button>
+      <button class="btn primary" type="button" id="btn-print">Печать / PDF</button>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <header class="hero">
+      <p class="eyebrow">Сеть «У Михалыча» · розница</p>
+      <h1>Чек-лист после <span>тестирования СПК</span></h1>
+      <p class="lead">Заполняется на встрече по итогам теста. Один лист — один сотрудник. Листы собираются для анализа.</p>
+    </header>
+
+    <form id="sheet">
+      <section class="card">
+        <h2>Сотрудник</h2>
+        <div class="grid two">
+          <label class="field">ФИО<input name="fio" type="text" autocomplete="name" /></label>
+          <label class="field">Магазин<input name="store" type="text" /></label>
+          <label class="field">Должность<input name="role" type="text" placeholder="СПК" /></label>
+          <label class="field">Дата встречи<input name="date" type="date" /></label>
+          <label class="field">Мобильный телефон<input name="phone" type="tel" placeholder="+7" /></label>
+          <label class="field">Балл теста<input name="score" type="text" placeholder="например 62 / 84 · 74%" /></label>
+        </div>
+        <div class="checks" style="margin-top:12px">
+          <label class="check"><input type="checkbox" name="phone_saved" /> Телефон записан в базу / чат</label>
+          <label class="check"><input type="checkbox" name="photo" /> Фото сотрудника сделано / сохранено</label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>0. Форма и бейджи в магазине</h2>
+        <div class="block">
+          <p class="q">Внешний вид / форма по сезону у смены</p>
+          <div class="pills">
+            <label><input type="radio" name="form_ok" value="ok" /> в порядке</label>
+            <label><input type="radio" name="form_ok" value="notes" /> есть замечания</label>
+          </div>
+        </div>
+        <label class="field">Замечания по форме<textarea name="form_notes"></textarea></label>
+        <div class="block">
+          <p class="q">Бейджи у сотрудников на смене</p>
+          <div class="pills">
+            <label><input type="radio" name="badge_who" value="all" /> у всех</label>
+            <label><input type="radio" name="badge_who" value="some" /> не у всех</label>
+            <label><input type="radio" name="badge_who" value="none" /> нет / не печатали</label>
+          </div>
+        </div>
+        <div class="block">
+          <p class="q">На бейдже ФИО + должность + QR</p>
+          <div class="pills">
+            <label><input type="radio" name="badge_qr" value="yes" /> да</label>
+            <label><input type="radio" name="badge_qr" value="old" /> нет / устарели</label>
+            <label><input type="radio" name="badge_qr" value="print" /> нужно допечатать</label>
+          </div>
+        </div>
+        <label class="field">Сколько бейджей допечатать / кому<input name="badge_print" type="text" /></label>
+      </section>
+
+      <section class="card">
+        <h2>1. TargControl (учёт рабочего времени)</h2>
+        <div class="block">
+          <p class="q">Работает ли с TargControl</p>
+          <div class="pills">
+            <label><input type="radio" name="tc_use" value="yes" /> да, регулярно</label>
+            <label><input type="radio" name="tc_use" value="sometimes" /> иногда</label>
+            <label><input type="radio" name="tc_use" value="no" /> нет / не умеет</label>
+          </div>
+        </div>
+        <label class="field">Как отмечается (приход / уход / перерыв)<textarea name="tc_how"></textarea></label>
+        <div class="block">
+          <p class="q">Понимает, как работать с программой</p>
+          <div class="pills">
+            <label><input type="radio" name="tc_skill" value="ok" /> уверенно</label>
+            <label><input type="radio" name="tc_skill" value="part" /> частично</label>
+            <label><input type="radio" name="tc_skill" value="demo" /> нужна демонстрация</label>
+          </div>
+        </div>
+        <label class="field">Что нужно для работы (учётка, номер + PIN/карта, терминал)<textarea name="tc_need"></textarea></label>
+        <div class="block">
+          <p class="q">Отмечает в момент факта смены и контролирует отметки смены</p>
+          <div class="pills">
+            <label><input type="radio" name="tc_fact" value="yes" /> да</label>
+            <label><input type="radio" name="tc_fact" value="no" /> нет</label>
+            <label><input type="radio" name="tc_fact" value="help" /> нужна помощь</label>
+          </div>
+        </div>
+        <label class="field">Комментарий / что показать на месте<textarea name="tc_note"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2>2. Комфорт работы и сложности</h2>
+        <div class="block">
+          <p class="q">Насколько комфортно работать в текущей роли СПК</p>
+          <div class="pills">
+            <label><input type="radio" name="comfort" value="1" /> 1</label>
+            <label><input type="radio" name="comfort" value="2" /> 2</label>
+            <label><input type="radio" name="comfort" value="3" /> 3</label>
+            <label><input type="radio" name="comfort" value="4" /> 4</label>
+            <label><input type="radio" name="comfort" value="5" /> 5</label>
+          </div>
+        </div>
+        <label class="field">Что помогает чувствовать себя уверенно на смене<textarea name="comfort_plus"></textarea></label>
+        <label class="field">Что даётся сложнее всего? Где «затыки»?<textarea name="comfort_hard"></textarea></label>
+        <label class="field">Чего не хватает (инструменты, люди, информация, время)<textarea name="comfort_need"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2>3. Работа в паре с другим СПК</h2>
+        <div class="block">
+          <p class="q">Работает в паре с другим СПК</p>
+          <div class="pills">
+            <label><input type="radio" name="pair" value="yes" /> да</label>
+            <label><input type="radio" name="pair" value="no" /> нет</label>
+            <label><input type="radio" name="pair" value="sometimes" /> иногда / подмена</label>
+          </div>
+        </div>
+        <label class="field">Если да — ФИО напарника<input name="pair_name" type="text" /></label>
+        <label class="field">Как делится ответственность (касса / зал / склад / смена)<textarea name="pair_zones"></textarea></label>
+        <label class="field">Что в паре получается хорошо<textarea name="pair_good"></textarea></label>
+        <label class="field">Где трения или дублирование? Как решаете?<textarea name="pair_bad"></textarea></label>
+        <div class="block">
+          <p class="q">Нужна помощь в настройке работы пары</p>
+          <div class="pills">
+            <label><input type="radio" name="pair_help" value="yes" /> да</label>
+            <label><input type="radio" name="pair_help" value="no" /> нет</label>
+          </div>
+        </div>
+        <label class="field">Комментарий<textarea name="pair_note"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2>4. Коллектив и атмосфера в смене</h2>
+        <div class="block">
+          <p class="q">Климат в коллективе</p>
+          <div class="pills">
+            <label><input type="radio" name="team" value="1" /> 1</label>
+            <label><input type="radio" name="team" value="2" /> 2</label>
+            <label><input type="radio" name="team" value="3" /> 3</label>
+            <label><input type="radio" name="team" value="4" /> 4</label>
+            <label><input type="radio" name="team" value="5" /> 5</label>
+          </div>
+        </div>
+        <label class="field">Кто опора? Есть ли конфликтные точки?<textarea name="team_people"></textarea></label>
+        <label class="field">Как смена реагирует на задачи и обратную связь от СПК<textarea name="team_fb"></textarea></label>
+        <label class="field">Что улучшить во взаимодействии команды<textarea name="team_fix"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2>5. База знаний, регламенты, ОС, сроки</h2>
+        <p class="hint">На встрече показать и отметить:</p>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="kb_read" /> Показано, как читать инструкции в базе знаний</label>
+          <label class="check"><input type="checkbox" name="kb_find" /> Показано, как искать регламенты</label>
+          <label class="check"><input type="checkbox" name="kb_fb" /> Как давать ОС: факт → влияние → что изменить → срок; наедине</label>
+          <label class="check"><input type="checkbox" name="kb_deadlines" /> Задачи вовремя; просрочки эскалировать, не копить</label>
+          <label class="check"><input type="checkbox" name="kb_practice" /> Сотрудник сам нашёл 1 инструкцию / регламент по теме из теста</label>
+        </div>
+        <label class="field" style="margin-top:12px">Что мешает делать задачи вовремя<textarea name="kb_block"></textarea></label>
+        <label class="field">Какая поддержка нужна от супервайзера / руководителя розницы / офиса<textarea name="kb_support"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2>6. Итог встречи и договорённости</h2>
+        <label class="field">3 главные договорённости / фокуса на ближайшие 2 недели<textarea name="focus" style="min-height:110px"></textarea></label>
+        <div class="block">
+          <p class="q">Нужен повторный разбор слабых тем теста</p>
+          <div class="pills">
+            <label><input type="radio" name="retest" value="yes" /> да</label>
+            <label><input type="radio" name="retest" value="no" /> нет</label>
+          </div>
+        </div>
+        <label class="field">Темы для разбора<input name="retest_topics" type="text" /></label>
+        <label class="field">Комментарий проводящего встречу<textarea name="host_note"></textarea></label>
+        <div class="signs" style="margin-top:18px">
+          <div class="sign">Сотрудник<br />________________ / _______________</div>
+          <div class="sign">Проводящий встречу<br />________________ / _______________</div>
+        </div>
+      </section>
+    </form>
+
+    <p class="foot">Лист сдать руководителю встречи. Фото и телефон — для базы контактов смены. «У Михалыча» · чек-лист после теста СПК</p>
+  </main>
+
+  <script>
+    const KEY = "spk-post-test-checklist";
+    const form = document.getElementById("sheet");
+
+    function save() {
+      const data = {};
+      new FormData(form).forEach((v, k) => { data[k] = v; });
+      form.querySelectorAll("input[type=checkbox]").forEach((el) => { data[el.name] = el.checked; });
+      localStorage.setItem(KEY, JSON.stringify(data));
+    }
+
+    function load() {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      Object.entries(data).forEach(([k, v]) => {
+        const els = form.querySelectorAll(`[name="${k}"]`);
+        els.forEach((el) => {
+          if (el.type === "checkbox") el.checked = !!v;
+          else if (el.type === "radio") el.checked = el.value === v;
+          else el.value = v;
+        });
+      });
+    }
+
+    form.addEventListener("input", save);
+    form.addEventListener("change", save);
+    document.getElementById("btn-print").onclick = () => window.print();
+    document.getElementById("btn-clear").onclick = () => {
+      if (!confirm("Очистить заполненный лист на этом устройстве?")) return;
+      form.reset();
+      localStorage.removeItem(KEY);
+    };
+    load();
+  </script>
+</body>
+</html>
