@@ -522,7 +522,6 @@
       return {
         subject: "Чек-лист СПК: " + fio + " · " + store,
         name: fio,
-        email: "noreply@um-ural.ru",
         store: store,
         position: role,
         score: d.score || "",
@@ -539,17 +538,16 @@
           subject: payload.subject,
           from_name: "Чек-лист СПК У Михалыча",
           name: payload.name,
-          email: payload.email,
-          replyto: payload.email,
-          store: payload.store,
-          position: payload.position,
-          score: payload.score,
+          email: MAIL_TO,
+          ФИО: payload.name,
+          Магазин: payload.store,
+          Должность: payload.position,
+          Балл: payload.score,
           message: payload.message,
-          botcheck: false,
         }),
       });
       const data = await res.json().catch(() => ({}));
-      const ok = data.success === true || data.success === "true";
+      const ok = res.ok && data.success !== false && (data.success === true || data.success === "true");
       return { ok, provider: "Web3Forms", message: String(data.message || (ok ? "ok" : "HTTP " + res.status)) };
     }
 
@@ -559,12 +557,11 @@
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           name: payload.name,
-          email: payload.email,
-          _replyto: payload.email,
+          email: MAIL_TO,
+          _replyto: MAIL_TO,
           _subject: payload.subject,
           _template: "table",
           _captcha: "false",
-          _honey: "",
           _url: location.href,
           store: payload.store,
           position: payload.position,
@@ -593,11 +590,10 @@
         mailForm.style.display = "none";
         const fields = {
           name: payload.name,
-          email: payload.email,
+          email: MAIL_TO,
           _subject: payload.subject,
           _template: "table",
           _captcha: "false",
-          _honey: "",
           _next: "https://formsubmit.co/thanks.html",
           store: payload.store,
           position: payload.position,
@@ -640,22 +636,30 @@
       buttons.forEach((b) => { b.disabled = true; });
       setStatus("", "Отправляем на " + MAIL_TO + " по двум каналам…");
 
-      const results = [];
-      try { results.push(await sendWeb3Forms(payload)); }
-      catch (err) { results.push({ ok: false, provider: "Web3Forms", message: String(err) }); }
-      try { results.push(await sendFormSubmitAjax(payload)); }
-      catch (err) { results.push({ ok: false, provider: "FormSubmit", message: String(err) }); }
-      try { results.push(await sendFormSubmitForm(payload)); }
-      catch (err) { results.push({ ok: false, provider: "FormSubmit-форма", message: String(err) }); }
+      try {
+        const results = [];
+        try { results.push(await sendWeb3Forms(payload)); }
+        catch (err) { results.push({ ok: false, provider: "Web3Forms", message: String(err) }); }
+        try { results.push(await sendFormSubmitAjax(payload)); }
+        catch (err) { results.push({ ok: false, provider: "FormSubmit", message: String(err) }); }
+        try { await sendFormSubmitForm(payload); }
+        catch (_) { /* iframe — запасной транспорт, успех не подтверждаем */ }
 
-      const ok = results.filter((r) => r.ok);
-      const via = ok.map((r) => r.provider).join(" + ");
-      if (ok.length) {
-        setStatus("ok", "Лист отправлен на " + MAIL_TO + (via ? " (" + via + ")" : "") + ".");
-      } else {
-        setStatus("bad", "Не подтвердилась отправка. Нажмите «Печать / PDF» или напишите на " + MAIL_TO + ".");
+        const ok = results.filter((r) => r.ok);
+        const via = ok.map((r) => r.provider).join(" + ");
+        const fail = results.filter((r) => !r.ok).map((r) => r.provider + ": " + r.message).join("; ");
+        if (ok.length) {
+          setStatus("ok", "Лист отправлен на " + MAIL_TO + (via ? " (" + via + ")" : "") + ". Проверьте входящие и «Спам».");
+        } else {
+          const mail = "mailto:" + MAIL_TO +
+            "?subject=" + encodeURIComponent(payload.subject) +
+            "&body=" + encodeURIComponent(payload.message.slice(0, 1600));
+          setStatus("bad", "Автоотправка не подтвердилась" + (fail ? " (" + fail + ")" : "") + ".");
+          statusEl.innerHTML += " <a href=\"" + mail + "\">Открыть письмо на " + MAIL_TO + "</a>";
+        }
+      } finally {
+        buttons.forEach((b) => { b.disabled = false; });
       }
-      buttons.forEach((b) => { b.disabled = false; });
     }
 
     form.addEventListener("input", save);
